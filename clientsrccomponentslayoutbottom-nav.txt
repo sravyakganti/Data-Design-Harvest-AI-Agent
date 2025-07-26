@@ -1,0 +1,37 @@
+client/src/components/layout/bottom-navigation.tsx
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Home, Search, Database, Settings } from "lucide-react";
+
+export default function BottomNavigation() {
+  const [location, setLocation] = useLocation();
+
+  const navItems = [
+    { path: "/", icon: Home, label: "Home" },
+    { path: "/search", icon: Search, label: "Search" },
+    { path: "/data", icon: Database, label: "Data" },
+    { path: "/settings", icon: Settings, label: "Settings" },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+      <div className="grid grid-cols-4 h-16">
+        {navItems.map(({ path, icon: Icon, label }) => (
+          <Button
+            key={path}
+            variant="ghost"
+            className={`flex flex-col items-center justify-center space-y-1 h-full rounded-none transition-colors ${
+              location === path 
+                ? "text-primary bg-primary/5" 
+                : "text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            onClick={() => setLocation(path)}
+          >
+            <Icon className="h-5 w-5" />
+            <span className="text-xs font-medium">{label}</span>
+          </Button>
+        ))}
+      </div>
+    </nav>
+  );
+}

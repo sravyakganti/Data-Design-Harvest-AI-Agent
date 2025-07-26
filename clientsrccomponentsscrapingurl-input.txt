@@ -1,0 +1,155 @@
+client/src/components/scraping/url-input.tsx 
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Link, Play, Clipboard } from "lucide-react";
+
+export default function UrlInput() {
+  const [url, setUrl] = useState("");
+  const [options, setOptions] = useState({
+    images: true,
+    colors: true,
+    typography: false,
+    content: false,
+  });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const createScrapingSession = useMutation({
+    mutationFn: async (data: { url: string; domain: string; status: string; options: any }) => {
+      const response = await apiRequest("POST", "/api/scraping-sessions", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/scraping-sessions"] });
+      setUrl("");
+      toast({
+        title: "Scraping Started",
+        description: "Your scraping session has been started successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start scraping",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!url) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid URL to scrape.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      createScrapingSession.mutate({
+        url: urlObj.toString(),
+        domain: urlObj.hostname,
+        status: "pending",
+        options,
+      });
+    } catch (error) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid URL starting with http:// or https://",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUrl(text);
+    } catch (error) {
+      toast({
+        title: "Paste Failed",
+        description: "Could not paste from clipboard. Please enter URL manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOptionChange = (option: keyof typeof options, checked: boolean) => {
+    setOptions(prev => ({ ...prev, [option]: checked }));
+  };
+
+  return (
+    <section className="p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Link className="h-5 w-5 text-primary" />
+            <span>Start Scraping</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-2">
+                Website URL
+              </Label>
+              <div className="relative">
+                <Input
+                  id="url"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="pr-12"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 h-auto"
+                  onClick={handlePaste}
+                >
+                  <Clipboard className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(options).map(([key, value]) => (
+                <div key={key} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg">
+                  <Checkbox
+                    id={key}
+                    checked={value}
+                    onCheckedChange={(checked) => handleOptionChange(key as keyof typeof options, !!checked)}
+                  />
+                  <Label htmlFor={key} className="text-sm cursor-pointer capitalize">{key}</Label>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-blue-700 text-white"
+              disabled={createScrapingSession.isPending}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {createScrapingSession.isPending ? "Starting..." : "Start Scraping"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
